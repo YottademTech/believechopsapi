@@ -1,5 +1,5 @@
 import { Router } from "express";
-import rateLimit from "express-rate-limit";
+import { rateLimit } from "express-rate-limit";
 import { addressesRouter } from "./addresses.js";
 import { authRouter } from "./auth.js";
 import { cartRouter } from "./cart.js";

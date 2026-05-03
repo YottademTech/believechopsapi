@@ -1,5 +1,5 @@
 import { Router } from "express";
-import rateLimit from "express-rate-limit";
+import { rateLimit } from "express-rate-limit";
 import { OtpChannel, OtpPurpose } from "@prisma/client";
 import { env } from "../config/env.js";
 import { signAccessToken } from "../lib/jwt.js";
