@@ -1,0 +1,138 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String    @id @default(cuid())
+  email            String?   @unique
+  phone            String?   @unique
+  name             String?
+  emailVerifiedAt  DateTime?
+  phoneVerifiedAt  DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  orders           Order[]
+  cart             Cart?
+  addresses        Address[]
+}
+
+model Address {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label       String?
+  ghanaPost   String?
+  community   String?
+  locality    String?
+  latitude    Float?
+  longitude   Float?
+  accuracyM   Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Cart {
+  id        String     @id @default(cuid())
+  userId    String     @unique
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lines     CartLine[]
+  updatedAt DateTime   @updatedAt
+}
+
+model CartLine {
+  id         String @id @default(cuid())
+  cartId     String
+  cart       Cart   @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  menuItemId String
+  quantity   Int
+
+  @@unique([cartId, menuItemId])
+  @@index([cartId])
+}
+
+model Order {
+  id          String      @id @default(cuid())
+  userId      String?
+  user        User?       @relation(fields: [userId], references: [id])
+  status      OrderStatus @default(PENDING)
+  /// Amount in smallest currency unit (e.g. kobo for NGN)
+  totalAmount Int
+  currency    String      @default("NGN")
+  items       Json?
+  /// Ghana Post code, community, locality, optional GPS from checkout — see API `delivery` shape
+  delivery    Json?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  payments    Payment[]
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  CANCELLED
+  FULFILLED
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  orderId           String
+  order             Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  amount            Int
+  currency          String
+  paystackReference String        @unique
+  status            PaymentStatus @default(PENDING)
+  paidAt            DateTime?
+  rawWebhookPayload Json?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+model Reminder {
+  id        String    @id @default(cuid())
+  userId    String?
+  channel   String
+  sendAt    DateTime
+  payload   Json?
+  sentAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
+enum OtpChannel {
+  EMAIL
+  SMS
+}
+
+enum OtpPurpose {
+  SIGN_IN
+  VERIFY_EMAIL
+  VERIFY_PHONE
+}
+
+model OtpChallenge {
+  id          String      @id @default(cuid())
+  identifier  String
+  channel     OtpChannel
+  purpose     OtpPurpose  @default(SIGN_IN)
+  codeHash    String
+  expiresAt   DateTime
+  attempts    Int         @default(0)
+  maxAttempts Int         @default(5)
+  consumedAt  DateTime?
+  createdAt   DateTime    @default(now())
+
+  @@index([identifier, channel])
+}

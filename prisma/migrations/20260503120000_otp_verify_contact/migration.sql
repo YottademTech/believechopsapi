@@ -1,0 +1,3 @@
+-- AlterEnum
+ALTER TYPE "OtpPurpose" ADD VALUE 'VERIFY_EMAIL';
+ALTER TYPE "OtpPurpose" ADD VALUE 'VERIFY_PHONE';
