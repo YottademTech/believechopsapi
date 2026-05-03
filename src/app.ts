@@ -21,26 +21,47 @@ function normalizeBrowserOrigin(origin: string): string {
   return origin.trim().replace(/\/+$/, "");
 }
 
-/** Production web app (Render). Always allowed together with `CORS_ORIGINS`. */
+/** Production web app (Render). Merged with `CORS_ORIGINS` whenever API runs in production or on Vercel. */
 const LIVE_FRONTEND_ORIGINS = [normalizeBrowserOrigin("https://believechops.onrender.com/")];
 
-function corsOptions(): cors.CorsOptions {
+function mergeLiveFrontendBrowsers(): boolean {
+  return env.NODE_ENV === "production" || process.env.VERCEL === "1";
+}
+
+function allowedBrowserOrigins(): Set<string> {
   const fromEnv =
     env.CORS_ORIGINS?.split(",")
       .map((s) => normalizeBrowserOrigin(s))
       .filter(Boolean) ?? [];
-  const origins =
-    env.NODE_ENV === "production"
-      ? [...new Set([...LIVE_FRONTEND_ORIGINS, ...fromEnv])]
-      : fromEnv;
+  if (!mergeLiveFrontendBrowsers()) {
+    return new Set(fromEnv);
+  }
+  return new Set([...LIVE_FRONTEND_ORIGINS, ...fromEnv]);
+}
 
-  if (origins.length > 0) {
-    return { origin: origins, credentials: true };
-  }
-  if (env.NODE_ENV === "development") {
-    return { origin: true, credentials: true };
-  }
-  return { origin: false, credentials: true };
+function corsOptions(): cors.CorsOptions {
+  const allowed = allowedBrowserOrigins();
+
+  return {
+    origin(originHeader, callback) {
+      if (env.NODE_ENV === "development") {
+        callback(null, true);
+        return;
+      }
+      if (!originHeader) {
+        callback(null, true);
+        return;
+      }
+      if (allowed.has(normalizeBrowserOrigin(originHeader))) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
+    methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    optionsSuccessStatus: 204,
+  };
 }
 
 export function createApp() {
@@ -51,12 +72,15 @@ export function createApp() {
     app.set("trust proxy", 1);
   }
 
+  /** CORS before Helmet — avoids CORP / header ordering issues on preflight and API responses. */
+  app.use(cors(corsOptions()));
   app.use(
     env.NODE_ENV === "development"
       ? helmet({ contentSecurityPolicy: false })
-      : helmet(),
+      : helmet({
+          crossOriginResourcePolicy: { policy: "cross-origin" },
+        }),
   );
-  app.use(cors(corsOptions()));
 
   if (env.NODE_ENV === "development") {
     app.get("/openapi.json", (_req, res) => {
