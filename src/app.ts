@@ -1,6 +1,8 @@
 import cors from "cors";
 import express from "express";
-import helmet from "helmet";
+import type { HelmetOptions } from "helmet";
+import helmetDefault from "helmet";
+import type { RequestHandler } from "express";
 import swaggerUi from "swagger-ui-express";
 import { env } from "./config/env.js";
 import { openApiDocument } from "./docs/openapi.js";
@@ -9,6 +11,10 @@ import { notFound } from "./middleware/notFound.js";
 import { apiRouter } from "./routes/index.js";
 import { paystackWebhookRouter } from "./routes/webhooks.js";
 import * as paymentService from "./services/paymentService.js";
+
+const helmet = helmetDefault as (
+  options?: Readonly<HelmetOptions>,
+) => RequestHandler;
 
 function corsOptions(): cors.CorsOptions {
   const list = env.CORS_ORIGINS?.split(",")
