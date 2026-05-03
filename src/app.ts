@@ -12,7 +12,7 @@ import { apiRouter } from "./routes/index.js";
 import { paystackWebhookRouter } from "./routes/webhooks.js";
 import * as paymentService from "./services/paymentService.js";
 
-const helmet = helmetDefault as (
+const helmet = helmetDefault as unknown as (
   options?: Readonly<HelmetOptions>,
 ) => RequestHandler;
 
