@@ -16,12 +16,26 @@ const helmet = helmetDefault as unknown as (
   options?: Readonly<HelmetOptions>,
 ) => RequestHandler;
 
+/** Browser `Origin` values never include a trailing slash — normalize env/list entries. */
+function normalizeBrowserOrigin(origin: string): string {
+  return origin.trim().replace(/\/+$/, "");
+}
+
+/** Production web app (Render). Always allowed together with `CORS_ORIGINS`. */
+const LIVE_FRONTEND_ORIGINS = [normalizeBrowserOrigin("https://believechops.onrender.com/")];
+
 function corsOptions(): cors.CorsOptions {
-  const list = env.CORS_ORIGINS?.split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  if (list?.length) {
-    return { origin: list, credentials: true };
+  const fromEnv =
+    env.CORS_ORIGINS?.split(",")
+      .map((s) => normalizeBrowserOrigin(s))
+      .filter(Boolean) ?? [];
+  const origins =
+    env.NODE_ENV === "production"
+      ? [...new Set([...LIVE_FRONTEND_ORIGINS, ...fromEnv])]
+      : fromEnv;
+
+  if (origins.length > 0) {
+    return { origin: origins, credentials: true };
   }
   if (env.NODE_ENV === "development") {
     return { origin: true, credentials: true };
