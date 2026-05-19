@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { rateLimit } from "express-rate-limit";
+import { adminRouter } from "./admin.js";
 import { addressesRouter } from "./addresses.js";
 import { authRouter } from "./auth.js";
 import { cartRouter } from "./cart.js";
@@ -26,3 +27,4 @@ apiRouter.use("/cart", cartRouter);
 apiRouter.use("/orders", ordersRouter);
 apiRouter.use("/payments", paymentsRouter);
 apiRouter.use("/reminders", remindersRouter);
+apiRouter.use("/admin", adminRouter);

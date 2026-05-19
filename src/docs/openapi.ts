@@ -43,6 +43,13 @@ export const openApiDocument = {
           email: { type: "string", nullable: true },
           phone: { type: "string", nullable: true },
           name: { type: "string", nullable: true },
+          staffRole: {
+            type: "string",
+            nullable: true,
+            enum: ["ADMIN", "SUPERADMIN"],
+            description:
+              "Admin portal only: `ADMIN` = restaurant/ops employees; `SUPERADMIN` = top operator. Null for customers (they never use the admin app).",
+          },
           emailVerifiedAt: { type: "string", format: "date-time", nullable: true },
           phoneVerifiedAt: { type: "string", format: "date-time", nullable: true },
           createdAt: { type: "string", format: "date-time" },

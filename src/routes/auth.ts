@@ -3,6 +3,7 @@ import { rateLimit } from "express-rate-limit";
 import { OtpChannel, OtpPurpose } from "@prisma/client";
 import { env } from "../config/env.js";
 import { signAccessToken } from "../lib/jwt.js";
+import { normalizeE164Phone } from "../lib/phone.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import * as otpService from "../services/otpService.js";
 import * as userService from "../services/userService.js";
@@ -15,10 +16,10 @@ export const authRouter = Router();
 
 const otpSendLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: 12,
+  max: 8,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: "Too many OTP send attempts. Try again later." },
+  message: { error: "Too many OTP send attempts. Try again later.", code: "OTP_RATE_LIMIT" },
 });
 
 const otpVerifyLimiter = rateLimit({
@@ -53,6 +54,17 @@ const otpSendSchema = z
         code: z.ZodIssueCode.custom,
         message: "phone is required when channel is SMS (E.164)",
       });
+    }
+    if (d.channel === OtpChannel.SMS && d.phone?.trim()) {
+      try {
+        normalizeE164Phone(d.phone);
+      } catch {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Invalid phone. Use international format, e.g. +233551234567",
+          path: ["phone"],
+        });
+      }
     }
   });
 

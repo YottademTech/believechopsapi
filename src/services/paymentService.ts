@@ -1,6 +1,7 @@
 import type { Payment } from "@prisma/client";
 import { OrderStatus, PaymentStatus } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
+import { emitToStaff } from "../realtime/staffEmit.js";
 import { AppError } from "../utils/AppError.js";
 
 export async function findPendingPaymentForOrder(orderId: string): Promise<Payment | null> {
@@ -32,7 +33,7 @@ export async function initializePaymentRecord(params: {
   amountKobo: number;
   currency: string;
 }): Promise<Payment> {
-  return prisma.payment.create({
+  const payment = await prisma.payment.create({
     data: {
       orderId: params.orderId,
       paystackReference: params.reference,
@@ -41,6 +42,14 @@ export async function initializePaymentRecord(params: {
       status: PaymentStatus.PENDING,
     },
   });
+  const withOrder = await prisma.payment.findUnique({
+    where: { id: payment.id },
+    include: { order: true },
+  });
+  if (withOrder) {
+    emitToStaff("payment:updated", { payment: withOrder });
+  }
+  return payment;
 }
 
 export async function applyVerifiedPayment(params: {
@@ -83,11 +92,68 @@ export async function applyVerifiedPayment(params: {
       data: { status: OrderStatus.PAID },
     }),
   ]);
+
+  const updated = await prisma.payment.findUnique({
+    where: { id: payment.id },
+    include: {
+      order: {
+        include: {
+          user: { select: { id: true, email: true, phone: true, name: true } },
+        },
+      },
+    },
+  });
+  if (updated) {
+    emitToStaff("payment:updated", { payment: updated });
+    emitToStaff("order:updated", { order: updated.order });
+  }
 }
 
 export async function getPaymentByReference(reference: string) {
   return prisma.payment.findUnique({
     where: { paystackReference: reference },
     include: { order: true },
+  });
+}
+
+export async function listPaymentsForStaff(params: {
+  take: number;
+  cursor?: string;
+  status?: PaymentStatus;
+  search?: string;
+}) {
+  const where: Record<string, unknown> = {};
+  if (params.status) {
+    where.status = params.status;
+  }
+  if (params.search?.trim()) {
+    const q = params.search.trim();
+    where.OR = [
+      { paystackReference: { contains: q, mode: "insensitive" } },
+      {
+        order: {
+          user: {
+            OR: [
+              { name: { contains: q, mode: "insensitive" } },
+              { email: { contains: q, mode: "insensitive" } },
+              { phone: { contains: q, mode: "insensitive" } },
+            ],
+          },
+        },
+      },
+    ];
+  }
+  return prisma.payment.findMany({
+    take: params.take + 1,
+    orderBy: { createdAt: "desc" },
+    where,
+    ...(params.cursor ? { skip: 1, cursor: { id: params.cursor } } : {}),
+    include: {
+      order: {
+        include: {
+          user: { select: { id: true, email: true, phone: true, name: true } },
+        },
+      },
+    },
   });
 }

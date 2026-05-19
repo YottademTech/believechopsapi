@@ -14,6 +14,8 @@ const envSchema = z.object({
   WEBHOOK_SIMULATE_SECRET: z.string().min(16).optional(),
   /** Comma-separated list; empty uses permissive CORS in development only */
   CORS_ORIGINS: z.string().optional(),
+  /** Comma-separated admin portal origins (Vite dev, production admin host). Merged into CORS + Socket.IO allowlist in production. */
+  ADMIN_CORS_ORIGINS: z.string().optional(),
 
   JWT_SECRET: z.string().min(32),
   JWT_EXPIRES_IN: z.string().default("7d"),
@@ -21,6 +23,8 @@ const envSchema = z.object({
   OTP_PEPPER: z.string().min(16),
   OTP_LENGTH: z.coerce.number().min(4).max(8).default(6),
   OTP_TTL_MINUTES: z.coerce.number().min(1).max(60).default(10),
+  /** Minimum seconds between OTP sends to the same email/phone. */
+  OTP_RESEND_COOLDOWN_SECONDS: z.coerce.number().min(30).max(600).default(60),
 
   /** Primary routing hint when request omits `channel` — email requires SMTP; sms requires Arkesel or Twilio */
   OTP_DEFAULT_CHANNEL: z.enum(["email", "sms"]).default("email"),

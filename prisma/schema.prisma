@@ -8,11 +8,21 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/// Who may use the admin portal. Shoppers are **not** here — they have `staffRole` null on `User`.
+enum StaffRole {
+  /// BelieveChops restaurant / ops employees (day-to-day admin), under superadmin.
+  ADMIN
+  /// Top-level operator; higher control than `ADMIN` (differentiated in app over time).
+  SUPERADMIN
+}
+
 model User {
-  id               String    @id @default(cuid())
-  email            String?   @unique
-  phone            String?   @unique
+  id               String     @id @default(cuid())
+  email            String?    @unique
+  phone            String?    @unique
   name             String?
+  /// Set only for staff who use the admin portal. Always null for customers (storefront only).
+  staffRole        StaffRole?
   emailVerifiedAt  DateTime?
   phoneVerifiedAt  DateTime?
   createdAt        DateTime  @default(now())

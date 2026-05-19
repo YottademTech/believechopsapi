@@ -1,0 +1,2 @@
+-- Extend admin ladder: SUPERADMIN > ADMIN > CUSTOMER
+ALTER TYPE "UserRole" ADD VALUE 'SUPERADMIN';

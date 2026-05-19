@@ -4,6 +4,7 @@ import type { HelmetOptions } from "helmet";
 import helmetDefault from "helmet";
 import type { RequestHandler } from "express";
 import swaggerUi from "swagger-ui-express";
+import { getCorsAllowedOrigins, normalizeBrowserOrigin } from "./config/corsOrigins.js";
 import { env } from "./config/env.js";
 import { openApiDocument } from "./docs/openapi.js";
 import { errorHandler } from "./middleware/errorHandler.js";
@@ -16,31 +17,8 @@ const helmet = helmetDefault as unknown as (
   options?: Readonly<HelmetOptions>,
 ) => RequestHandler;
 
-/** Browser `Origin` values never include a trailing slash — normalize env/list entries. */
-function normalizeBrowserOrigin(origin: string): string {
-  return origin.trim().replace(/\/+$/, "");
-}
-
-/** Production web app (Render). Merged with `CORS_ORIGINS` whenever API runs in production or on Vercel. */
-const LIVE_FRONTEND_ORIGINS = [normalizeBrowserOrigin("https://believechops.onrender.com/")];
-
-function mergeLiveFrontendBrowsers(): boolean {
-  return env.NODE_ENV === "production" || process.env.VERCEL === "1";
-}
-
-function allowedBrowserOrigins(): Set<string> {
-  const fromEnv =
-    env.CORS_ORIGINS?.split(",")
-      .map((s) => normalizeBrowserOrigin(s))
-      .filter(Boolean) ?? [];
-  if (!mergeLiveFrontendBrowsers()) {
-    return new Set(fromEnv);
-  }
-  return new Set([...LIVE_FRONTEND_ORIGINS, ...fromEnv]);
-}
-
 function corsOptions(): cors.CorsOptions {
-  const allowed = allowedBrowserOrigins();
+  const allowed = getCorsAllowedOrigins();
 
   return {
     origin(originHeader, callback) {

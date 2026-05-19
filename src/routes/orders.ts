@@ -9,7 +9,8 @@ export const ordersRouter = Router();
 
 const createOrderSchema = z
   .object({
-    totalAmount: z.number().int().positive(),
+    /** 0 = quote / WhatsApp checkout (no online payment yet). */
+    totalAmount: z.number().int().nonnegative(),
     currency: z.string().min(1).optional(),
     items: z.unknown().optional(),
     delivery: deliveryPayloadSchema,

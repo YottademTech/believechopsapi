@@ -8,7 +8,7 @@ import { AppError } from "../utils/AppError.js";
 import { sendOtpEmail } from "./notification/email.js";
 import { sendOtpSms } from "./notification/sms.js";
 
-const OTP_SENDS_PER_HOUR = 10;
+const OTP_SENDS_PER_HOUR = 5;
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -37,7 +37,26 @@ export async function requestOtp(input: RequestOtpInput): Promise<void> {
     },
   });
   if (recent >= OTP_SENDS_PER_HOUR) {
-    throw new AppError("Too many verification attempts. Try again later.", 429);
+    throw new AppError("Too many verification attempts. Try again later.", 429, "OTP_RATE_LIMIT");
+  }
+
+  const cooldownMs = env.OTP_RESEND_COOLDOWN_SECONDS * 1000;
+  const lastSend = await prisma.otpChallenge.findFirst({
+    where: { identifier, channel, purpose },
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true },
+  });
+  if (lastSend) {
+    const elapsed = Date.now() - lastSend.createdAt.getTime();
+    if (elapsed < cooldownMs) {
+      const retryAfterSeconds = Math.ceil((cooldownMs - elapsed) / 1000);
+      throw new AppError(
+        `Please wait ${retryAfterSeconds} seconds before requesting another code.`,
+        429,
+        "OTP_COOLDOWN",
+        retryAfterSeconds,
+      );
+    }
   }
 
   await prisma.otpChallenge.updateMany({
