@@ -40,6 +40,15 @@ const envSchema = z.object({
   SMTP_PASS: z.string().optional(),
   SMTP_FROM: z.string().email().optional(),
 
+  /**
+   * Customer-facing web origin for transactional email links (welcome + menu reminder), e.g. `https://www.example.com`.
+   * Trailing slash is optional; menu URLs are built as `{origin}/menu`.
+   */
+  EMAIL_PUBLIC_SITE_ORIGIN: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
+    z.string().url(),
+  ),
+
   /** Ghana / Africa: Arkesel (https://developers.arkesel.com/). Legacy: `twilio`. */
   NOTIFICATION_SMS_PROVIDER: z.enum(["arkesel", "twilio", "none"]).default("none"),
   /** SMS V2: sent as `api-key` header on POST /api/v2/sms/send */
@@ -68,11 +77,6 @@ const envSchema = z.object({
    * `{APP_PUBLIC_URL}/api/...` — no trailing slash.
    */
   APP_PUBLIC_URL: z.preprocess(
-    (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
-    z.string().url().optional(),
-  ),
-  /** Customer-facing web app origin for email links (menu). If unset, first `CORS_ORIGINS` entry is used. */
-  FRONTEND_PUBLIC_URL: z.preprocess(
     (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
     z.string().url().optional(),
   ),
